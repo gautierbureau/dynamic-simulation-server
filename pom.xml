@@ -51,6 +51,11 @@
         <jib.from.image>powsybl/java-dynawo:4.0.0</jib.from.image>
         <liquibase-hibernate-package>org.gridsuite.ds.server</liquibase-hibernate-package>
         <string-template.version>4.3.1</string-template.version>
+        <!-- Dynawo run through JNI on the network itself (powsybl-dynawo with its jni module), on powsybl-core 7.4.0 with
+             the tcb extensions and the network store client implementing it: overrides of gridsuite-dependencies -->
+        <powsybl-core.version>7.4.0-tcb-SNAPSHOT</powsybl-core.version>
+        <powsybl-dynawo.version>3.4.0-tcb-SNAPSHOT</powsybl-dynawo.version>
+        <powsybl-network-store.version>1.52.0-SNAPSHOT</powsybl-network-store.version>
         <sonar.organization>gridsuite</sonar.organization>
         <sonar.projectKey>org.gridsuite:dynamic-simulation-server</sonar.projectKey>
     </properties>
@@ -89,6 +94,46 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <!-- Dynawo run through JNI, in the JVM of the tests, from the installation of the DYNAWO_INSTALL_DIR environment
+                 variable (its libraries and those of its third parties on the LD_LIBRARY_PATH), instead of in the
+                 java-dynawo container: a platform config with the jni launcher of the dynawo module -->
+            <id>jni</id>
+            <activation>
+                <property>
+                    <name>env.DYNAWO_INSTALL_DIR</name>
+                </property>
+            </activation>
+            <build>
+                <testResources>
+                    <testResource>
+                        <directory>src/test/resources</directory>
+                        <excludes>
+                            <exclude>com/powsybl/config/test/config.yml</exclude>
+                        </excludes>
+                    </testResource>
+                    <testResource>
+                        <directory>src/test/resources-jni</directory>
+                        <filtering>true</filtering>
+                    </testResource>
+                </testResources>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <!-- its mapping needs models of the java-dynawo container, and its results are those of its Dynawo -->
+                                <exclude>**/DynamicSimulationControllerIEEE14Test.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
@@ -96,6 +141,35 @@
                 <groupId>org.gridsuite</groupId>
                 <artifactId>gridsuite-computation</artifactId>
                 <version>2.7.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-core</artifactId>
+                <version>${powsybl-core.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-dynawo</artifactId>
+                <version>${powsybl-dynawo.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-client</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-iidm-impl</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-model</artifactId>
+                <version>${powsybl-network-store.version}</version>
             </dependency>
 
             <!-- imports -->
@@ -161,6 +235,10 @@
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-dynawo-mappings</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.powsybl</groupId>
             <artifactId>powsybl-network-store-client</artifactId>
         </dependency>
         <dependency>
@@ -178,6 +256,12 @@
         </dependency>
 
         <!-- runtime dependencies -->
+        <dependency>
+            <!-- Dynawo run through JNI, by the "launcher: JNI" of the dynawo module of the platform config -->
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-dynawo-simulation-jni</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream-binder-rabbit</artifactId>

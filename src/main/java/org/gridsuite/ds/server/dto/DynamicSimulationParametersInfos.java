@@ -35,6 +35,9 @@ public class DynamicSimulationParametersInfos {
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private Double stopTime;
     private UUID mappingId;
+    // a mapping of powsybl-dynawo (UniversalDynaWaltz for instance), applied to the network instead of the mapping of the
+    // dynamic mapping server
+    private String mappingName;
     private SolverType solver;
     private List<SolverInfos> solvers;
     private NetworkInfos network;

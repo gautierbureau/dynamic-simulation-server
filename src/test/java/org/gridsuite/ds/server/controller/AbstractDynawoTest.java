@@ -8,8 +8,11 @@
 package org.gridsuite.ds.server.controller;
 
 import com.powsybl.computation.ComputationManager;
+import com.powsybl.computation.local.LocalComputationConfig;
+import com.powsybl.computation.local.LocalComputationManager;
 import com.powsybl.computation.local.test.ComputationDockerConfig;
 import com.powsybl.computation.local.test.DockerLocalComputationManager;
+import com.powsybl.dynawo.DynawoSimulationConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,6 +35,11 @@ abstract class AbstractDynawoTest {
 
     @BeforeEach
     void setUp() throws IOException {
+        if (DynawoSimulationConfig.load().getLauncher() == DynawoSimulationConfig.Launcher.JNI) {
+            // Dynawo run in this JVM, through JNI (jni profile): no command to execute
+            computationManager = new LocalComputationManager(new LocalComputationConfig(tempDir, 1));
+            return;
+        }
         Path dockerDir = Path.of("/home/powsybl");
         ComputationDockerConfig config = new ComputationDockerConfig()
                 .setDockerImageId(DOCKER_IMAGE_ID);
