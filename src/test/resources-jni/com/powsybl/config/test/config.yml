@@ -1,0 +1,5 @@
+dynawo:
+  # Dynawo run in the JVM of the tests, through JNI, from the installation of the DYNAWO_INSTALL_DIR environment variable
+  homeDir: @env.DYNAWO_INSTALL_DIR@
+  launcher: JNI
+  debug: false

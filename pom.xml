@@ -94,6 +94,46 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <!-- Dynawo run through JNI, in the JVM of the tests, from the installation of the DYNAWO_INSTALL_DIR environment
+                 variable (its libraries and those of its third parties on the LD_LIBRARY_PATH), instead of in the
+                 java-dynawo container: a platform config with the jni launcher of the dynawo module -->
+            <id>jni</id>
+            <activation>
+                <property>
+                    <name>env.DYNAWO_INSTALL_DIR</name>
+                </property>
+            </activation>
+            <build>
+                <testResources>
+                    <testResource>
+                        <directory>src/test/resources</directory>
+                        <excludes>
+                            <exclude>com/powsybl/config/test/config.yml</exclude>
+                        </excludes>
+                    </testResource>
+                    <testResource>
+                        <directory>src/test/resources-jni</directory>
+                        <filtering>true</filtering>
+                    </testResource>
+                </testResources>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <!-- its mapping needs models of the java-dynawo container, and its results are those of its Dynawo -->
+                                <exclude>**/DynamicSimulationControllerIEEE14Test.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <dependencyManagement>
         <dependencies>
             <!-- overrides of imports -->
@@ -216,6 +256,12 @@
         </dependency>
 
         <!-- runtime dependencies -->
+        <dependency>
+            <!-- Dynawo run through JNI, by the "launcher: JNI" of the dynawo module of the platform config -->
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-dynawo-simulation-jni</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream-binder-rabbit</artifactId>
