@@ -17,6 +17,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 
 import java.io.UncheckedIOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,8 +73,9 @@ public class DynamicSimulationResultContext extends AbstractResultContext<Dynami
             .debug(debug)
             .build();
 
-        // specific headers for dynamic simulation
-        runContext.setMappingId(UUID.fromString(getNonNullHeader(headers, HEADER_MAPPING_ID)));
+        // specific headers for dynamic simulation: no mapping id for a mapping of powsybl-dynawo
+        Object mappingId = headers.get(HEADER_MAPPING_ID);
+        runContext.setMappingId(mappingId != null ? UUID.fromString(mappingId.toString()) : null);
         // using Object then toString() to avoid casting exception since rabbitmq uses LongString instead of String
         Object eventsJson = headers.get(HEADER_EVENTS);
         List<EventInfos> events;
@@ -95,7 +97,11 @@ public class DynamicSimulationResultContext extends AbstractResultContext<Dynami
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
         }
-        return Map.of(HEADER_MAPPING_ID, getRunContext().getMappingId().toString(),
-                HEADER_EVENTS, eventsJson);
+        Map<String, String> headers = new HashMap<>();
+        if (getRunContext().getMappingId() != null) {
+            headers.put(HEADER_MAPPING_ID, getRunContext().getMappingId().toString());
+        }
+        headers.put(HEADER_EVENTS, eventsJson);
+        return headers;
     }
 }

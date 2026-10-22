@@ -52,6 +52,9 @@ public class DynamicSimulationParametersEntity {
     @Column(name = "mapping_id")
     private UUID mappingId;
 
+    @Column(name = "mapping_name")
+    private String mappingName;
+
     @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "dynamic_simulation_parameters_id",
             foreignKey = @ForeignKey(name = "solver_parameters_dynamic_simulation_parameters_id_fk"))
@@ -81,6 +84,7 @@ public class DynamicSimulationParametersEntity {
         startTime = parametersInfos.getStartTime() != null ? parametersInfos.getStartTime() : 0;
         stopTime = parametersInfos.getStopTime() != null ? parametersInfos.getStopTime() : 0;
         mappingId = parametersInfos.getMappingId();
+        mappingName = parametersInfos.getMappingName();
         solver = parametersInfos.getSolver();
 
         // --- Solvers ---
@@ -169,6 +173,7 @@ public class DynamicSimulationParametersEntity {
         dto.setStartTime(startTime);
         dto.setStopTime(stopTime);
         dto.setMappingId(mappingId);
+        dto.setMappingName(mappingName);
         dto.setSolver(solver);
 
         dto.setSolvers(solvers != null

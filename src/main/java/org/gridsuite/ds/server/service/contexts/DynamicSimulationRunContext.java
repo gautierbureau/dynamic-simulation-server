@@ -6,6 +6,7 @@
  */
 package org.gridsuite.ds.server.service.contexts;
 
+import com.powsybl.dynamicsimulation.DynamicModelsSupplier;
 import com.powsybl.dynamicsimulation.DynamicSimulationParameters;
 import com.powsybl.dynawo.suppliers.dynamicmodels.DynamicModelConfig;
 import com.powsybl.dynawo.suppliers.events.EventModelConfig;
@@ -37,6 +38,9 @@ public class DynamicSimulationRunContext extends AbstractComputationRunContext<D
 
     private List<DynamicModelConfig> t0DynamicModelContent;
     private List<DynamicModelConfig> t1DynamicModelContent;
+
+    // the dynamic models of a mapping of powsybl-dynawo, built from the network rather than from dynamic model configs
+    private DynamicModelsSupplier dynamicModelsSupplier;
 
     private List<EventModelConfig> eventModelContent;
 

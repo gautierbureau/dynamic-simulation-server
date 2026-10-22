@@ -210,8 +210,8 @@ public class ParametersServiceImpl implements ParametersService {
         UUID mappingToUse = runContext.getParameters().getMappingId();
         runContext.setMappingId(mappingToUse);
 
-        // check mapping
-        if (runContext.getMappingId() == null) {
+        // check mapping: of the dynamic mapping server, or of powsybl-dynawo
+        if (runContext.getMappingId() == null && runContext.getParameters().getMappingName() == null) {
             throw new DynamicSimulationException(MAPPING_NOT_PROVIDED, "Dynamic simulation mapping not provided");
         }
 

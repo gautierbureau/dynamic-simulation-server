@@ -17,8 +17,11 @@ import com.powsybl.dynamicsimulation.groovy.GroovyExtension;
 import com.powsybl.dynamicsimulation.groovy.GroovyOutputVariablesSupplier;
 import com.powsybl.dynamicsimulation.groovy.OutputVariableGroovyExtension;
 import com.powsybl.dynawo.DumpFileParameters;
+import com.powsybl.dynawo.DynawoSimulationConfig;
 import com.powsybl.dynawo.DynawoSimulationParameters;
 import com.powsybl.dynawo.DynawoSimulationProvider;
+import com.powsybl.dynawo.mappings.DynamicModelsMappings;
+import com.powsybl.dynawo.mappings.parameters.ModelDescriptionLookup;
 import com.powsybl.dynawo.suppliers.dynamicmodels.DynamicModelConfig;
 import com.powsybl.dynawo.suppliers.dynamicmodels.DynamicModelConfigJsonUtils;
 import com.powsybl.dynawo.suppliers.dynamicmodels.DynawoModelsSupplier;
@@ -163,22 +166,37 @@ public class DynamicSimulationWorkerService extends AbstractWorkerService<Dynami
         super.preRun(runContext);
         DynamicSimulationParametersInfos parametersInfos = runContext.getParameters();
 
-        // get parameters file from dynamic mapping server
-        ParameterFile parameterFile = dynamicMappingClient.exportParameters(runContext.getMappingId());
+        DynamicSimulationParameters t0Parameters;
+        DynamicSimulationParameters t1Parameters;
+        List<DynamicModelConfig> t0DynamicModel;
+        List<DynamicModelConfig> t1DynamicModel;
+        if (parametersInfos.getMappingName() != null) {
+            // a mapping of powsybl-dynawo, applied once to the network: the dynamic models it gives, and the parameters of
+            // the models added to the simulation parameters, T1 sharing them
+            t0Parameters = parametersService.getDynamicSimulationParameters(null, runContext.getProvider(), parametersInfos);
+            runContext.setDynamicModelsSupplier(applyDynawoMapping(parametersInfos.getMappingName(), runContext, t0Parameters));
+            t1Parameters = copy(t0Parameters);
+            // its dynamic models are not dynamic model configs
+            t0DynamicModel = List.of();
+            t1DynamicModel = List.of();
+        } else {
+            // get parameters file from dynamic mapping server
+            ParameterFile parameterFile = dynamicMappingClient.exportParameters(runContext.getMappingId());
 
-        // get all dynamic simulation parameters
-        String parameterFileContent = parameterFile.fileContent();
-        // at the moment T0 and T1 share the same parameters infos, same mapping
-        DynamicSimulationParameters t0Parameters = parametersService.getDynamicSimulationParameters(
-                parameterFileContent.getBytes(StandardCharsets.UTF_8), runContext.getProvider(), parametersInfos);
-        DynamicSimulationParameters t1Parameters = parametersService.getDynamicSimulationParameters(
-                parameterFileContent.getBytes(StandardCharsets.UTF_8), runContext.getProvider(), parametersInfos);
+            // get all dynamic simulation parameters
+            String parameterFileContent = parameterFile.fileContent();
+            // at the moment T0 and T1 share the same parameters infos, same mapping
+            t0Parameters = parametersService.getDynamicSimulationParameters(
+                    parameterFileContent.getBytes(StandardCharsets.UTF_8), runContext.getProvider(), parametersInfos);
+            t1Parameters = parametersService.getDynamicSimulationParameters(
+                    parameterFileContent.getBytes(StandardCharsets.UTF_8), runContext.getProvider(), parametersInfos);
 
-        // get mapping then generate dynamic model configs
-        InputMapping inputMapping = dynamicMappingClient.getMapping(runContext.getMappingId());
-        // at the moment T0 and T1 share the same dynamic model
-        List<DynamicModelConfig> t0DynamicModel = parametersService.getDynamicModel(inputMapping, runContext.getNetwork());
-        List<DynamicModelConfig> t1DynamicModel = parametersService.getDynamicModel(inputMapping, runContext.getNetwork());
+            // get mapping then generate dynamic model configs
+            InputMapping inputMapping = dynamicMappingClient.getMapping(runContext.getMappingId());
+            // at the moment T0 and T1 share the same dynamic model
+            t0DynamicModel = parametersService.getDynamicModel(inputMapping, runContext.getNetwork());
+            t1DynamicModel = parametersService.getDynamicModel(inputMapping, runContext.getNetwork());
+        }
         List<EventModelConfig> eventModel = parametersService.getEventModel(runContext.getEvents());
 
         // set start and stop times
@@ -211,10 +229,37 @@ public class DynamicSimulationWorkerService extends AbstractWorkerService<Dynami
         setupDumpParameters(workDir, t0Parameters);
     }
 
+    /**
+     * Applies a mapping of powsybl-dynawo to the network of a run, with the models of the installation of Dynawo: the
+     * parameters of the models it gives are added to the parameters of Dynawo
+     */
+    private static DynamicModelsSupplier applyDynawoMapping(String mappingName, DynamicSimulationRunContext runContext,
+                                                            DynamicSimulationParameters parameters) {
+        DynawoSimulationParameters dynawoParameters = parameters.getExtension(DynawoSimulationParameters.class);
+        if (dynawoParameters == null) {
+            throw new PowsyblException("The mapping " + mappingName + " is a mapping of Dynawo, not of the provider " + runContext.getProvider());
+        }
+        // the installation of Dynawo, a native program, on the local file system whatever the file system of the platform
+        // configuration (an in-memory one in tests)
+        Path dynawoHome = Path.of(DynawoSimulationConfig.load().getHomeDir().toString());
+        return DynamicModelsMappings.getInstance().apply(mappingName, runContext.getNetwork(), dynawoParameters,
+                ModelDescriptionLookup.fromModelDatabase(dynawoHome), runContext.getReportNode());
+    }
+
+    private DynamicSimulationParameters copy(DynamicSimulationParameters parameters) {
+        try {
+            return objectMapper.readValue(objectMapper.writeValueAsString(parameters), DynamicSimulationParameters.class);
+        } catch (JsonProcessingException e) {
+            throw new UncheckedIOException("Error occurred while copying the dynamic simulation parameters", e);
+        }
+    }
+
     @Override
     public CompletableFuture<DynamicSimulationResult> getCompletableFuture(DynamicSimulationRunContext runContext, String provider, UUID resultUuid) {
 
-        DynamicModelsSupplier dynamicModelsSupplier = new DynawoModelsSupplier(runContext.getT0DynamicModelContent());
+        DynamicModelsSupplier dynamicModelsSupplier = runContext.getDynamicModelsSupplier() != null
+            ? runContext.getDynamicModelsSupplier()
+            : new DynawoModelsSupplier(runContext.getT0DynamicModelContent());
 
         EventModelsSupplier eventModelsSupplier = new DynawoEventModelsSupplier(runContext.getEventModelContent());
 
@@ -224,7 +269,9 @@ public class DynamicSimulationWorkerService extends AbstractWorkerService<Dynami
 
         DynamicSimulationParameters parameters = runContext.getT0DynamicSimulationParameters();
         LOGGER.info("Run dynamic simulation on network {} and variant {} with mapping {}, startTime {}, stopTime {},",
-                runContext.getNetworkUuid(), runContext.getVariantId(), runContext.getMappingId(), parameters.getStartTime(), parameters.getStopTime());
+                runContext.getNetworkUuid(), runContext.getVariantId(),
+                runContext.getParameters().getMappingName() != null ? runContext.getParameters().getMappingName() : runContext.getMappingId(),
+                parameters.getStartTime(), parameters.getStopTime());
 
         DynamicSimulation.Runner runner = DynamicSimulation.find(provider);
         return runner.runAsync(runContext.getNetwork(),

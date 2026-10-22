@@ -51,6 +51,11 @@
         <jib.from.image>powsybl/java-dynawo:4.0.0</jib.from.image>
         <liquibase-hibernate-package>org.gridsuite.ds.server</liquibase-hibernate-package>
         <string-template.version>4.3.1</string-template.version>
+        <!-- Dynawo run through JNI on the network itself (powsybl-dynawo with its jni module), on powsybl-core 7.4.0 with
+             the tcb extensions and the network store client implementing it: overrides of gridsuite-dependencies -->
+        <powsybl-core.version>7.4.0-tcb-SNAPSHOT</powsybl-core.version>
+        <powsybl-dynawo.version>3.4.0-tcb-SNAPSHOT</powsybl-dynawo.version>
+        <powsybl-network-store.version>1.52.0-SNAPSHOT</powsybl-network-store.version>
         <sonar.organization>gridsuite</sonar.organization>
         <sonar.projectKey>org.gridsuite:dynamic-simulation-server</sonar.projectKey>
     </properties>
@@ -96,6 +101,35 @@
                 <groupId>org.gridsuite</groupId>
                 <artifactId>gridsuite-computation</artifactId>
                 <version>2.7.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-core</artifactId>
+                <version>${powsybl-core.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-dynawo</artifactId>
+                <version>${powsybl-dynawo.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-client</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-iidm-impl</artifactId>
+                <version>${powsybl-network-store.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-network-store-model</artifactId>
+                <version>${powsybl-network-store.version}</version>
             </dependency>
 
             <!-- imports -->
@@ -158,6 +192,10 @@
         <dependency>
             <groupId>com.powsybl</groupId>
             <artifactId>powsybl-dynawo-dsl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-dynawo-mappings</artifactId>
         </dependency>
         <dependency>
             <groupId>com.powsybl</groupId>
